@@ -8,6 +8,30 @@ from imutils.video import VideoStream
 import datetime
 import argparse
 import imutils
+import threading
+
+def picam_thread(picam):
+    # capture frames from the camera
+    for frame_1 in picam.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        # representacao da imagem com raw truncate
+        image1 = frame_1.array
+        frame2 = cv2.cvtColor(image1, cv2.COLOR_BGR2YUV)
+        frame2[:,:,0] = cv2.equalizeHist(frame2[:,:,0])
+        image = cv2.cvtColor(frame2, cv2.COLOR_YUV2BGR)
+        # Converte o frame para escala de cinza para poder trabalhar no 'haarcascade'
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        canvas = detect(gray, image)
+ 
+        # show the frame
+        cv2.imshow("Frame", image)
+        key = cv2.waitKey(1) & 0xFF
+ 
+        # limpa o stream p proximo frame
+        rawCapture.truncate(0)
+ 
+        # se q é pressionado fecha janela
+        if key == ord("q"):
+            break
 
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 eyes_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
@@ -50,10 +74,12 @@ time.sleep(2.0)
 picam.resolution = (640, 480)
 picam.framerate = 32
 rawCapture = PiRGBArray(picam, size=(640, 480))
- 
+
+picam_t = threading.Thread(target=picam_thread, args=(picam,))
+picam_t.start()
+
 # allow the camera to warmup
 time.sleep(0.1)
- 
 while True:
     # grab the frame_1 from the threaded video stream and resize it
     # to have a maximum width of 400 pixels
@@ -76,27 +102,7 @@ while True:
     if key == ord("b"):
         break
 
-# capture frames from the camera
-for frame_1 in picam.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-    # representacao da imagem com raw truncate
-    image1 = frame_1.array
-    frame2 = cv2.cvtColor(image1, cv2.COLOR_BGR2YUV)
-    frame2[:,:,0] = cv2.equalizeHist(frame2[:,:,0])
-    image = cv2.cvtColor(frame2, cv2.COLOR_YUV2BGR)
-  # Converte o frame para escala de cinza para poder trabalhar no 'haarcascade'
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    canvas = detect(gray, image)
- 
-    # show the frame
-    cv2.imshow("Frame", image)
-    key = cv2.waitKey(1) & 0xFF
- 
-    # limpa o stream p proximo frame
-    rawCapture.truncate(0)
- 
-    # se q é pressionado fecha janela
-    if key == ord("q"):
-        break
+
 cv2.destroyAllWindows()
 picam.stop()
 webcam.stop()
